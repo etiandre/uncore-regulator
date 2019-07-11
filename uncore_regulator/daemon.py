@@ -1,3 +1,4 @@
+import importlib
 import signal
 import time
 import logging
@@ -20,13 +21,18 @@ class Daemon():
     def set_logfile(self, logfile):
         self._logfile = open(logfile, 'w')
 
-    def __init__(self, cores, logfile=None):
+    def __init__(self, cores, logfile=None, regulator=None):
         if logfile:
             logging.info("Logging meters to {}".format(logfile))
             self._logfile = open(logfile, 'w')
         else:
             self._logfile = None
-
+        if regulator:
+            logging.info("Using regulator {}".format(regulator))
+            r_module = importlib.import_module("."+regulator, package="uncore_regulator.regulators")
+            self._regulator=getattr(r_module, regulator)()
+        else:
+            self._regulator = None
         logging.info("Reading cores {}".format(cores))
         self.cores = cores
 
@@ -53,15 +59,13 @@ class Daemon():
         estr += "PWR_PKG_ENERGY:PWR0,"
         estr += "PWR_DRAM_ENERGY:PWR3,"
         estr += "UNCORE_CLOCK:UBOXFIX"
-        logging.info("init self.cores")
         pylikwid.init(self.cores)
-        print("initialized {} self.cores".format(
+        print("initialized {} cores".format(
             pylikwid.getnumberofthreads()))
-        logging.info("add event set " + estr)
         self._gid = pylikwid.addeventset(estr)
+        logging.info("added event set " + estr)
         pylikwid.setup(self._gid)
         signal.signal(signal.SIGINT, self._exit_handler)
-        self._regulator = None
 
     def run(self):
         self._logtofile(
@@ -70,7 +74,7 @@ class Daemon():
         for i in range(0, pylikwid.getnumberofevents(self._gid)):
             logging.info("event {}: {}".format(
                 i, pylikwid.getnameofevent(self._gid, i)))
-        logging.info("start")
+        logging.info("start metering")
         t = 0
         mes_interval = 2
         pylikwid.start()

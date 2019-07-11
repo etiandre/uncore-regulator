@@ -1,9 +1,10 @@
 # Uncore regulator
 ## Installation
 ~~~~
-$ apt install likwid python3
-$ pip3 install pylikwid
+$ apt install likwid python3 python3-pip
+$ pip3 install .
 ~~~~
 
 ## Usage
-`python3 regulator.py -h`
+`# modprobe msr`
+`# uncore-regulator -h`
