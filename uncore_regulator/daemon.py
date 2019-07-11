@@ -29,8 +29,9 @@ class Daemon():
             self._logfile = None
         if regulator:
             logging.info("Using regulator {}".format(regulator))
-            r_module = importlib.import_module("."+regulator, package="uncore_regulator.regulators")
-            self._regulator=getattr(r_module, regulator)()
+            r_module = importlib.import_module(
+                "uncore_regulator.regulators." + regulator) 
+            self._regulator = getattr(r_module, regulator)()
         else:
             self._regulator = None
         logging.info("Reading cores {}".format(cores))
@@ -60,8 +61,7 @@ class Daemon():
         estr += "PWR_DRAM_ENERGY:PWR3,"
         estr += "UNCORE_CLOCK:UBOXFIX"
         pylikwid.init(self.cores)
-        print("initialized {} cores".format(
-            pylikwid.getnumberofthreads()))
+        print("initialized {} cores".format(pylikwid.getnumberofthreads()))
         self._gid = pylikwid.addeventset(estr)
         logging.info("added event set " + estr)
         pylikwid.setup(self._gid)
@@ -69,7 +69,7 @@ class Daemon():
 
     def run(self):
         self._logtofile(
-            "t [s]\tMFLOP/s\tMEM bandwidth [MB/s]\tOperatoinal Intensity\tPower 0 [W]\tPower 1 [W]\tDRAM Pow. 0 [W]\tDRAM Pow. 1 [W]\tUncore freq. 0 [MHz]\tUncore freq. 1 [Mhz]"
+            "t [s]\tMFLOP/s\tMEM bandwidth [MB/s]\tOperational Intensity\tPower 0 [W]\tPower 1 [W]\tDRAM Pow. 0 [W]\tDRAM Pow. 1 [W]\tUncore freq. 0 [MHz]\tUncore freq. 1 [Mhz]"
         )
         for i in range(0, pylikwid.getnumberofevents(self._gid)):
             logging.info("event {}: {}".format(
@@ -83,11 +83,13 @@ class Daemon():
             time.sleep(mes_interval)
             pylikwid.read()
             tprime = pylikwid.gettimeofgroup(self._gid)
+            d = {}
             dt = tprime - t
             t = tprime
-            flop = 0
-            datavolume = 0
+            d["t"] = t
+            d["dt"] = dt
             # Read PMCs on all self.cores of socket #0
+            flop = 0
             for core in range(0, 28, 2):
                 PMC0 = pylikwid.getlastresult(self._gid, 0,
                                               self.cores.index(core))
@@ -96,7 +98,8 @@ class Daemon():
                 PMC2 = pylikwid.getlastresult(self._gid, 2,
                                               self.cores.index(core))
                 flop += (PMC0 * 2.0 + PMC1 + PMC2 * 4.0)
-        # Read MBOXes only on socket #0 (socket 1 bug :( )
+            d["flop/s"] = flop / dt
+            # Read MBOXes only on socket #0 (socket 1 bug :( )
             MBOX0C0 = pylikwid.getlastresult(self._gid, 3, 0)
             MBOX0C1 = pylikwid.getlastresult(self._gid, 4, 0)
             MBOX1C0 = pylikwid.getlastresult(self._gid, 5, 0)
@@ -118,7 +121,7 @@ class Daemon():
                 (MBOX0C0 + MBOX1C0 + MBOX2C0 + MBOX3C0 + MBOX4C0 + MBOX5C0 +
                  MBOX6C0 + MBOX7C0 + MBOX0C1 + MBOX1C1 + MBOX2C1 + MBOX3C1 +
                  MBOX4C1 + MBOX5C1 + MBOX6C1 + MBOX7C1) * 64.0)
-
+            d["memory-bandwidth"] = datavolume / dt
             # read PWR and uncore freq on 0,1
             PWR0_0 = pylikwid.getlastresult(self._gid, 19, 0)
             PWR0_1 = pylikwid.getlastresult(self._gid, 19, 1)
@@ -127,20 +130,22 @@ class Daemon():
             UNCORE_CLOCK_0 = pylikwid.getlastresult(self._gid, 21, 0)
             UNCORE_CLOCK_1 = pylikwid.getlastresult(self._gid, 21, 1)
 
-            if datavolume != 0: oi = flop / datavolume
-            else: oi = float('inf')
+            if datavolume != 0: d["operational-intensity"] = flop / datavolume
+            else: d["operational-intensity"] = float('inf')
 
-            power_0 = PWR0_0 / dt
-            power_1 = PWR0_1 / dt
-            dram_power_0 = PWR3_0 / dt
-            dram_power_1 = PWR3_1 / dt
-            uncore_freq_0 = UNCORE_CLOCK_0 / dt
-            uncore_freq_1 = UNCORE_CLOCK_1 / dt
+            d["pkg-power_0"] = PWR0_0 / d["dt"]
+            d["pkg-power_1"] = PWR0_1 / d["dt"]
+            d["dram-power_0"] = PWR3_0 / d["dt"]
+            d["dram-power_1"] = PWR3_1 / d["dt"]
+            d["uncore-freq_0"] = UNCORE_CLOCK_0 / d["dt"]
+            d["uncore-freq_1"] = UNCORE_CLOCK_1 / d["dt"]
 
             if self._regulator:
-                self._regulator.regulate(oi, flop / dt)
+                self._regulator.regulate(d)
 
-            self._logtofile("{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}".format(
-                t, 1.0E-06 * flop / dt, 1.0E-06 * datavolume / dt, oi, power_0,
-                power_1, dram_power_0, dram_power_1, 1.E-06 * uncore_freq_0,
-                1.E-06 * uncore_freq_1))
+            self._logtofile("\t".join((str(i) for i in [
+                d["t"], 1.0E-06 * d["flop/s"], 1.0E-06 * d["memory-bandwidth"],
+                d["operational-intensity"], d["pkg-power_0"], d["pkg-power_1"],
+                d["dram-power_0"], d["dram-power_1"],
+                1.E-06 * d["uncore-freq_0"], 1.E-06 * d["uncore-freq_0"]
+            ])))
