@@ -6,5 +6,8 @@ $ pip3 install https://github.com/etiandre/uncore-regulator
 ~~~~
 
 ## Usage
-`# modprobe msr`
-`# uncore-regulator -h`
+As root:
+~~~~
+# modprobe msr
+# uncore-regulator -h
+~~~~
