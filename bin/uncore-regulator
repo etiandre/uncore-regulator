@@ -10,6 +10,7 @@ parser.add_argument("-o",
                     type=str,
                     help="Output file. If none is given, nothing is output.")
 parser.add_argument("cores", type=str, help="comma-separated list of physical core ids.")
+parser.add_argument("sockets", type=str, help="comma-separated list of sockets:")
 parser.add_argument("-r", "--regulator", type=str, help="Regulator to use (default: none)")
 parser.add_argument("-l", "--list-regulators", help="List avaliable regulators", action="store_true")
 args = parser.parse_args()
