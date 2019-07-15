@@ -26,10 +26,10 @@ You should at least specify one of these two options, or else the program will h
  - `-o OUTFILE, --logfile OUTFILE`
 Specify a file where the meters will be logged (tab-separated).
  - `-r REGULATOR, --regulator REGULATOR`
-Regulator to use. Availiable regulators are in the uncore_regulators/regulators folder.
+Regulator to use. Availiable regulators are in the uncore_regulators/regulators.
 
 ## Examples
-Meter cores 0 to 15 and on the 2 first sockets and log results to `test.tsv`. Do not perform any regulation.
+Meter cores 0 to 15 on the 2 first sockets and log results to `test.tsv`. Do not perform any regulation.
 
 `$ uncore-regulator 0-15 0,1 -o test.tsv`
 
