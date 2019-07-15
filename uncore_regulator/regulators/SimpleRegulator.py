@@ -22,28 +22,30 @@ class SimpleRegulator():
         self.phase = Phase.UNK
         self.state = State.ADJUSTING
         self.set_freq(None)
-        self.cur_freq = None
+        self.cur_freq = self.freqs[1]
 
     def reset(self):
         self.maxflops = 0
         self.state = State.ADJUSTING
         self.set_freq(None)
+        self.cur_freq = self.freqs[1]
 
     def set_freq(self, f):
         if f:
             subprocess.run(
                 ["likwid-setFrequencies", "--umin",
-                 str(f), "--umax",
-                 str(f)])
-            logging.info("changed uncore freq to {}".format(f))
+                 "{:.1f}".format(f), "--umax",
+                 "{:.1f}".format(f)])
+            logging.info("changed uncore freq to {:.1f}".format(f))
         else:
             subprocess.run(["likwid-setFrequencies", "--ureset"])
             logging.info("reset uncore freq limits")
 
     def regulate(self, d):
         if d["flop/s"] < 10000:
-            print("Not enough flop/s! Sleeping...")
-            self.phase = Phase.UNK
+            if self.phase==Phase.UNK:
+                print("Not enough flop/s! Sleeping...")
+                self.phase = Phase.UNK
         elif d["operational-intensity"] > 1 and self.phase != Phase.CPU:
             logging.info(
                 "Detected CPU-intensive phase (operational intensity={})".
@@ -59,7 +61,7 @@ class SimpleRegulator():
 
         if self.state == State.ADJUSTING and self.phase != Phase.UNK:
             if d["flop/s"] > self.maxflops:
-                self._maxflops = d["flop/s"]
+                self.maxflops = d["flop/s"]
             elif d["flop/s"] > .98 * self.maxflops:
                 # freq should go down
                 self.cur_freq -= self.freqs[2]
