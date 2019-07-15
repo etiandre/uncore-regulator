@@ -10,24 +10,24 @@ class Daemon():
         pylikwid.stop()
         logging.info("stop")
         pylikwid.finalize()
-        if self._logfile: self._logfile.close()
+        if self._outfile: self._outfile.close()
         exit()
 
     def _logtofile(self, s):
-        if self._logfile:
-            self._logfile.write(s)
-            self._logfile.write("\n")
+        if self._outfile:
+            self._outfile.write(s)
+            self._outfile.write("\n")
 
-    def set_logfile(self, logfile):
-        self._logfile = open(logfile, 'w')
+    def set_outfile(self, outfile):
+        self._outfile = open(outfile, 'w')
 
-    def __init__(self, cores, sockets, logfile=None, regulator=None):
-        if logfile:
-            logging.info("Logging meters to {}".format(logfile))
-            self._logfile = open(logfile, 'w')
+    def __init__(self, cores, sockets, outfile=None, regulator=None):
+        if outfile:
+            logging.info("Logging meters to {}".format(outfile))
+            self._outfile = open(outfile, 'w')
         else:
             logging.info("Not logging anything")
-            self._logfile = None
+            self._outfile = None
         if regulator:
             logging.info("Using regulator {}".format(regulator))
             r_module = importlib.import_module("uncore_regulator.regulators." +

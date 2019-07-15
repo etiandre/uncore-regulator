@@ -21,19 +21,19 @@ def parse_range_list(rl):
 
 parser = argparse.ArgumentParser()
 parser.add_argument("-o",
-                    "--logfile",
+                    "--output",
                     type=str,
-                    help="Output file. If none is given, nothing is output.")
+                    help="Specify a file where the meters will be logged (tab-separated).")
 parser.add_argument("cores",
                     type=str,
-                    help="comma-separated list of physical core ids.")
+                    help="list of physical core ids from which flop/s and memory usage will be metered")
 parser.add_argument("sockets",
                     type=str,
-                    help="comma-separated list of physical sockets ids.")
+                    help="list of physical sockets ids from which uncore frequency and power will be metered")
 parser.add_argument("-r",
                     "--regulator",
                     type=str,
-                    help="Regulator to use (default: none)")
+                    help="Regulator to use. Availiable regulators are in the uncore_regulators/regulators folder.")
 args = parser.parse_args()
 
 cores = parse_range_list(args.cores)
@@ -41,5 +41,5 @@ sockets = parse_range_list(args.sockets)
 
 logging.basicConfig(level=logging.DEBUG)
 
-d = Daemon(cores=cores, sockets=sockets, logfile=args.logfile, regulator=args.regulator)
+d = Daemon(cores=cores, sockets=sockets, outfile=args.output, regulator=args.regulator)
 d.run()
