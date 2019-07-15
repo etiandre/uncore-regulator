@@ -40,7 +40,7 @@ class SimpleRegulator():
             subprocess.run(["likwid-setFrequencies", "--ureset"])
             logging.info("reset uncore freq limits")
 
-    def tick(self, d):
+    def regulate(self, d):
         if d["flop/s"] < 10000:
             print("Not enough flop/s! Sleeping...")
             self.phase = Phase.UNK
