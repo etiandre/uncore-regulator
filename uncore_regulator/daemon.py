@@ -21,7 +21,7 @@ class Daemon():
     def set_outfile(self, outfile):
         self._outfile = open(outfile, 'w')
 
-    def __init__(self, cores, sockets, outfile=None, regulator=None):
+    def __init__(self, cores, sockets, sleep_dt, outfile=None, regulator=None):
         if outfile:
             logging.info("Logging meters to {}".format(outfile))
             self._outfile = open(outfile, 'w')
@@ -41,6 +41,8 @@ class Daemon():
         self.sockets = sockets
         self.measured_cores = list(set.union(cores, sockets))
         logging.info("-> Metering on {}".format(self.measured_cores))
+        self.sleep_dt = sleep_dt
+        logging.info("Measuring every {} seconds".format(self.sleep_dt))
         # https://github.com/RRZE-HPC/likwid/blob/master/groups/broadwellEP/MEM_DP.txt
         estr = "FP_ARITH_INST_RETIRED_128B_PACKED_DOUBLE:PMC0,"
         estr += "FP_ARITH_INST_RETIRED_SCALAR_DOUBLE:PMC1,"
@@ -65,7 +67,8 @@ class Daemon():
         estr += "PWR_DRAM_ENERGY:PWR3,"
         estr += "UNCORE_CLOCK:UBOXFIX"
         pylikwid.init(self.measured_cores)
-        logging.info("initialized {} threads".format(pylikwid.getnumberofthreads()))
+        logging.info("initialized {} threads".format(
+            pylikwid.getnumberofthreads()))
         self._gid = pylikwid.addeventset(estr)
         pylikwid.setup(self._gid)
         signal.signal(signal.SIGINT, self._exit_handler)
@@ -75,17 +78,16 @@ class Daemon():
             "t [s]\tMFLOP/s\tMEM bandwidth [MB/s]\tOperational Intensity\t" +
             "\t".join(
                 "Power {0} [W]\tDRAM Pow. {0} [W]\tUncore freq. {0} [MHz]".
-                 format(i) for i in self.sockets))
+                format(i) for i in self.sockets))
         for i in range(0, pylikwid.getnumberofevents(self._gid)):
             logging.info("event {}: {}".format(
                 i, pylikwid.getnameofevent(self._gid, i)))
         logging.info("start metering")
         t = 0
-        mes_interval = 2
         pylikwid.start()
 
         while True:
-            time.sleep(mes_interval)
+            time.sleep(self.sleep_dt)
             pylikwid.read()
             tprime = pylikwid.gettimeofgroup(self._gid)
             d = {}

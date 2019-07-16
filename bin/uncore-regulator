@@ -34,6 +34,11 @@ parser.add_argument("-r",
                     "--regulator",
                     type=str,
                     help="Regulator to use. Availiable regulators are in the uncore_regulators/regulators folder.")
+parser.add_argument("-t",
+                    dest="t",
+                    type=float,
+                    help="Time between two measurements (in seconds)",
+                    default=1.)
 args = parser.parse_args()
 
 cores = parse_range_list(args.cores)
@@ -41,5 +46,5 @@ sockets = parse_range_list(args.sockets)
 
 logging.basicConfig(level=logging.DEBUG)
 
-d = Daemon(cores=cores, sockets=sockets, outfile=args.output, regulator=args.regulator)
+d = Daemon(cores=cores, sockets=sockets, sleep_dt=args.t, outfile=args.output, regulator=args.regulator)
 d.run()
