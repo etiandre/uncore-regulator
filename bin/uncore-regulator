@@ -66,7 +66,7 @@ if args.regulator:
     logging.info("Loading regulator {}".format(args.regulator))
     r_module = importlib.import_module("uncore_regulator.regulators." +
                                        args.regulator)
-    d.set_regulator(getattr(r_module, regulator)())
+    d.set_regulator(getattr(r_module, args.regulator)())
 else:
     logging.info("No regulator loaded")
 
