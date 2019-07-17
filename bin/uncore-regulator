@@ -3,6 +3,7 @@ import signal
 import argparse
 import logging
 import importlib
+import subprocess
 
 from uncore_regulator.daemon import Daemon
 from itertools import chain
@@ -50,6 +51,8 @@ parser.add_argument("-t",
                     type=float,
                     help="Time between two measurements (in seconds)",
                     default=1.)
+parser.add_argument("-e", "--exec", type=str, help="Command to execute")
+
 args = parser.parse_args()
 
 cores = parse_range_list(args.cores)
@@ -57,23 +60,28 @@ sockets = parse_range_list(args.sockets)
 
 logging.basicConfig(level=logging.DEBUG)
 
-d = Daemon(cores=cores,
-           sockets=sockets,
-           sleep_dt=args.t,
-           outfile=args.output)
+d = Daemon(cores=cores, sockets=sockets, sleep_dt=args.t, outfile=args.output)
 
 if args.regulator:
     logging.info("Loading regulator {}".format(args.regulator))
     r_module = importlib.import_module("uncore_regulator.regulators." +
-                                               args.regulator)
+                                       args.regulator)
     d.set_regulator(getattr(r_module, regulator)())
 else:
     logging.info("No regulator loaded")
 
+
 def exit_handler(sig, frame):
     logging.info("Stopping daemon...")
     d.stop.set()
+
 signal.signal(signal.SIGINT, exit_handler)
 
 d.start()
+
+if args.exec:
+    subprocess.run(args.exec, shell=True, check=True)
+    d.stop.set()
+
 d.join()
+
