@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-
+import signal
 import argparse
 import logging
 
@@ -20,20 +20,30 @@ def parse_range_list(rl):
 
 
 parser = argparse.ArgumentParser()
-parser.add_argument("-o",
-                    "--output",
-                    type=str,
-                    help="Specify a file where the meters will be logged (tab-separated).")
-parser.add_argument("cores",
-                    type=str,
-                    help="list of physical core ids from which flop/s and memory usage will be metered")
-parser.add_argument("sockets",
-                    type=str,
-                    help="list of physical sockets ids from which uncore frequency and power will be metered")
-parser.add_argument("-r",
-                    "--regulator",
-                    type=str,
-                    help="Regulator to use. Availiable regulators are in the uncore_regulators/regulators folder.")
+parser.add_argument(
+    "-o",
+    "--output",
+    type=str,
+    help="Specify a file where the meters will be logged (tab-separated).")
+parser.add_argument(
+    "cores",
+    type=str,
+    help=
+    "list of physical core ids from which flop/s and memory usage will be metered"
+)
+parser.add_argument(
+    "sockets",
+    type=str,
+    help=
+    "list of physical sockets ids from which uncore frequency and power will be metered"
+)
+parser.add_argument(
+    "-r",
+    "--regulator",
+    type=str,
+    help=
+    "Regulator to use. Availiable regulators are in the uncore_regulators/regulators folder."
+)
 parser.add_argument("-t",
                     dest="t",
                     type=float,
@@ -46,5 +56,18 @@ sockets = parse_range_list(args.sockets)
 
 logging.basicConfig(level=logging.DEBUG)
 
-d = Daemon(cores=cores, sockets=sockets, sleep_dt=args.t, outfile=args.output, regulator=args.regulator)
-d.run()
+d = Daemon(cores=cores,
+           sockets=sockets,
+           sleep_dt=args.t,
+           outfile=args.output,
+           regulator=args.regulator)
+
+
+def exit_handler(sig, frame):
+    logging.info("Stopping daemon...")
+    d.stop.set()
+
+
+signal.signal(signal.SIGINT, exit_handler)
+d.start()
+d.join()

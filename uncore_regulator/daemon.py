@@ -3,16 +3,10 @@ import signal
 import time
 import logging
 import pylikwid
+import threading
 
 
-class Daemon():
-    def _exit_handler(self, sig, frame):
-        pylikwid.stop()
-        logging.info("stop")
-        pylikwid.finalize()
-        if self._outfile: self._outfile.close()
-        exit()
-
+class Daemon(threading.Thread):
     def _logtofile(self, s):
         if self._outfile:
             self._outfile.write(s)
@@ -22,6 +16,8 @@ class Daemon():
         self._outfile = open(outfile, 'w')
 
     def __init__(self, cores, sockets, sleep_dt, outfile=None, regulator=None):
+        threading.Thread.__init__(self)
+        self.stop = threading.Event()
         if outfile:
             logging.info("Logging meters to {}".format(outfile))
             self._outfile = open(outfile, 'w')
@@ -35,7 +31,7 @@ class Daemon():
             self._regulator = getattr(r_module, regulator)()
         else:
             logging.info("No regulator loaded")
-            self._regulator = None
+            self.regulator = None
         logging.info("Using cores {} and sockets {}".format(cores, sockets))
         self.cores = cores
         self.sockets = sockets
@@ -71,7 +67,6 @@ class Daemon():
             pylikwid.getnumberofthreads()))
         self._gid = pylikwid.addeventset(estr)
         pylikwid.setup(self._gid)
-        signal.signal(signal.SIGINT, self._exit_handler)
 
     def run(self):
         self._logtofile(
@@ -82,12 +77,17 @@ class Daemon():
         for i in range(0, pylikwid.getnumberofevents(self._gid)):
             logging.info("event {}: {}".format(
                 i, pylikwid.getnameofevent(self._gid, i)))
-        logging.info("start metering")
+        logging.info("Start metering!")
         t = 0
         pylikwid.start()
 
         while True:
-            time.sleep(self.sleep_dt)
+            if self.stop.wait(timeout=self.sleep_dt):
+                pylikwid.stop()
+                logging.info("Stopped metering")
+                pylikwid.finalize()
+                if self._outfile: self._outfile.close()
+                break
             pylikwid.read()
             tprime = pylikwid.gettimeofgroup(self._gid)
             d = {}
@@ -160,8 +160,8 @@ class Daemon():
             if datavolume != 0: d["operational-intensity"] = flop / datavolume
             else: d["operational-intensity"] = float('inf')
 
-            if self._regulator:
-                self._regulator.regulate(d)
+            if self.regulator:
+                self.regulator.regulate(d)
 
             self._logtofile("\t".join(
                 str(i) for i in [
