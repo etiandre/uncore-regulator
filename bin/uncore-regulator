@@ -2,6 +2,7 @@
 import signal
 import argparse
 import logging
+import importlib
 
 from uncore_regulator.daemon import Daemon
 from itertools import chain
@@ -59,15 +60,20 @@ logging.basicConfig(level=logging.DEBUG)
 d = Daemon(cores=cores,
            sockets=sockets,
            sleep_dt=args.t,
-           outfile=args.output,
-           regulator=args.regulator)
+           outfile=args.output)
 
+if args.regulator:
+    logging.info("Loading regulator {}".format(args.regulator))
+    r_module = importlib.import_module("uncore_regulator.regulators." +
+                                               args.regulator)
+    d.set_regulator(getattr(r_module, regulator)())
+else:
+    logging.info("No regulator loaded")
 
 def exit_handler(sig, frame):
     logging.info("Stopping daemon...")
     d.stop.set()
-
-
 signal.signal(signal.SIGINT, exit_handler)
+
 d.start()
 d.join()

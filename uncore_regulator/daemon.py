@@ -7,31 +7,16 @@ import threading
 
 
 class Daemon(threading.Thread):
-    def _logtofile(self, s):
-        if self._outfile:
-            self._outfile.write(s)
-            self._outfile.write("\n")
-
-    def set_outfile(self, outfile):
-        self._outfile = open(outfile, 'w')
-
     def __init__(self, cores, sockets, sleep_dt, outfile=None, regulator=None):
         threading.Thread.__init__(self)
         self.stop = threading.Event()
+        self._regulator = None
         if outfile:
             logging.info("Logging meters to {}".format(outfile))
             self._outfile = open(outfile, 'w')
         else:
             logging.info("Not logging anything")
             self._outfile = None
-        if regulator:
-            logging.info("Using regulator {}".format(regulator))
-            r_module = importlib.import_module("uncore_regulator.regulators." +
-                                               regulator)
-            self._regulator = getattr(r_module, regulator)()
-        else:
-            logging.info("No regulator loaded")
-            self.regulator = None
         logging.info("Using cores {} and sockets {}".format(cores, sockets))
         self.cores = cores
         self.sockets = sockets
@@ -67,6 +52,17 @@ class Daemon(threading.Thread):
             pylikwid.getnumberofthreads()))
         self._gid = pylikwid.addeventset(estr)
         pylikwid.setup(self._gid)
+
+    def _logtofile(self, s):
+        if self._outfile:
+            self._outfile.write(s)
+            self._outfile.write("\n")
+
+    def set_outfile(self, outfile):
+        self._outfile = open(outfile, 'w')
+
+    def set_regulator(self, regulator):
+        self._regulator = regulator
 
     def run(self):
         self._logtofile(
@@ -160,8 +156,8 @@ class Daemon(threading.Thread):
             if datavolume != 0: d["operational-intensity"] = flop / datavolume
             else: d["operational-intensity"] = float('inf')
 
-            if self.regulator:
-                self.regulator.regulate(d)
+            if self._regulator:
+                self._regulator.regulate(d)
 
             self._logtofile("\t".join(
                 str(i) for i in [
