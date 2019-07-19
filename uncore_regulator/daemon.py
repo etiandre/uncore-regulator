@@ -7,7 +7,7 @@ import threading
 
 
 class Daemon(threading.Thread):
-    def __init__(self, cores, sockets, sleep_dt, outfile=None, regulator=None):
+    def __init__(self, cores, sockets, sleep_dt, outfile=None):
         threading.Thread.__init__(self)
         self.stop = threading.Event()
         self._regulator = None
